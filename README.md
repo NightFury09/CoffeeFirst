@@ -3,7 +3,6 @@
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9.0-purple.svg)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-1.5.4-green.svg)](https://developer.android.com/jetpack/compose)
 [![Platform](https://img.shields.io/badge/Platform-Quectel_SC200EE-orange.svg)](https://www.quectel.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 An elegant, high-fidelity Human-Machine Interface (HMI) Android application designed for capacitive touch display panels (1280x800 resolution) in landscape mode, running on the **Quectel SC200EE** platform (Android 12/13/14). Built entirely using **Jetpack Compose**, this project showcases a modern, minimalist dark espresso design with custom animations, interactive parameters, and robust state machine management.
 
@@ -96,8 +95,4 @@ This application implements a **Single-Activity Architecture** utilizing Jetpack
               [Completion Timer] ──→ (Timeout) ──→ [Back to Idle]
   ```
 
----
 
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
