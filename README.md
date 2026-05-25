@@ -11,15 +11,15 @@ An elegant, high-fidelity Human-Machine Interface (HMI) Android application desi
 
 ## 🎨 Interactive User Interface
 
-Here is a preview of the main HMI design layouts:
+Here is a preview of the actual HMI display screens:
 
 ### 🖥️ Beverage Selection Dashboard
-![HMI Dashboard Mockup](file:///C:/Users/akhil/.gemini/antigravity-ide/brain/d281b51b-97b2-4b85-be11-2af74a44257f/hmi_dashboard_1779691945616.png)
-*A sleek, glassmorphic layout displaying available beverage configurations (Espresso, Cappuccino, Latte) with high-end typography and interactive selections.*
+![Beverage Selection Screen](docs/images/select_beverage.jpg)
+*The main coffee selection interface featuring realistic grid cards (Cappuccino, Café Latte, Espresso, Americano, DipTea, Hot Milk, Hot Water, Steam) with custom parameters, water temperature, and system configurations.*
 
-### ⏳ Real-time Brewing & Progress View
-![HMI Brewing Interface](file:///C:/Users/akhil/.gemini/antigravity-ide/brain/d281b51b-97b2-4b85-be11-2af74a44257f/hmi_brewing_1779691966861.png)
-*Dynamic progress display featuring a glowing fill animation and clean state notifications during the mock dispensing process.*
+### ⏳ Idle Attract Loop Screen
+![Idle Attract Loop Screen](docs/images/idle_screen.png)
+*The HMI sleep/screensaver view displaying a real-time digital clock, ambient greeting, and a minimal tap-to-start action.*
 
 ---
 
