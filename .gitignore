@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+/build
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+/app/build
+.kotlin/
+*.zip
+errors.txt
+errors_coffee_hmi/
+coffee_hmi_workflow.md
+implementation_plan_update.md
