@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlinx.coroutines.delay
+import java.time.LocalDateTime
 
 @Composable
 fun TechnicalSettingsScreen(
@@ -332,29 +333,107 @@ fun TechnicalSettingsScreen(
                 )
             }
             "DATE_TIME" -> {
-                var localHour by remember { mutableStateOf(14f) }
-                var localMin by remember { mutableStateOf(43f) }
+                val currentVirtual = remember { InventoryManager.getSystemDateTime() }
+                var localYear by remember { mutableStateOf(currentVirtual.year) }
+                var localMonth by remember { mutableStateOf(currentVirtual.monthValue) }
+                var localDay by remember { mutableStateOf(currentVirtual.dayOfMonth) }
+                var localHour by remember { mutableStateOf(currentVirtual.hour) }
+                var localMin by remember { mutableStateOf(currentVirtual.minute) }
+
+                val maxDays = remember(localYear, localMonth) {
+                    java.time.YearMonth.of(localYear, localMonth).lengthOfMonth()
+                }
+                LaunchedEffect(maxDays) {
+                    if (localDay > maxDays) {
+                        localDay = maxDays
+                    }
+                }
+
                 AlertDialog(
                     onDismissRequest = { activeDialog = null },
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                InventoryManager.addLog("System date/time synchronized: ${localHour.toInt()}:${localMin.toInt()}")
+                                val targetDateTime = LocalDateTime.of(localYear, localMonth, localDay, localHour, localMin)
+                                InventoryManager.setSystemDateTime(targetDateTime)
                                 activeDialog = null
                             }
-                        ) { Text("SYNC TIME", color = Gold) }
+                        ) { Text("SYNC DATE & TIME", color = Gold, fontWeight = FontWeight.Bold) }
                     },
                     dismissButton = {
                         TextButton(onClick = { activeDialog = null }) { Text("CANCEL", color = Color.White) }
                     },
-                    title = { Text("Adjust Time settings") },
+                    title = { Text("Adjust System Date & Time", color = Gold, fontWeight = FontWeight.Bold) },
                     text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Text("Set Hours: ${localHour.toInt()} h")
-                            Slider(value = localHour, onValueChange = { localHour = it }, valueRange = 0f..23f)
-                            
-                            Text("Set Minutes: ${localMin.toInt()} m")
-                            Slider(value = localMin, onValueChange = { localMin = it }, valueRange = 0f..59f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Date Column
+                            Column(
+                                modifier = Modifier.weight(1.4f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("DATE SETTINGS", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    TouchStepper(
+                                        label = "Day",
+                                        value = String.format("%02d", localDay),
+                                        onDecrement = { if (localDay > 1) localDay-- },
+                                        onIncrement = { if (localDay < maxDays) localDay++ },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TouchStepper(
+                                        label = "Month",
+                                        value = java.time.format.TextStyle.SHORT.let { style ->
+                                            java.time.Month.of(localMonth).getDisplayName(style, java.util.Locale.US)
+                                        },
+                                        onDecrement = { if (localMonth > 1) localMonth-- else localMonth = 12 },
+                                        onIncrement = { if (localMonth < 12) localMonth++ else localMonth = 1 },
+                                        modifier = Modifier.weight(1.1f)
+                                    )
+                                    TouchStepper(
+                                        label = "Year",
+                                        value = localYear.toString(),
+                                        onDecrement = { if (localYear > 2020) localYear-- },
+                                        onIncrement = { if (localYear < 2050) localYear++ },
+                                        modifier = Modifier.weight(1.2f)
+                                    )
+                                }
+                            }
+
+                            // Time Column
+                            Column(
+                                modifier = Modifier.weight(1.0f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("TIME SETTINGS", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    TouchStepper(
+                                        label = "Hour",
+                                        value = String.format("%02d", localHour),
+                                        onDecrement = { if (localHour > 0) localHour-- else localHour = 23 },
+                                        onIncrement = { if (localHour < 23) localHour++ else localHour = 0 },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TouchStepper(
+                                        label = "Min",
+                                        value = String.format("%02d", localMin),
+                                        onDecrement = { if (localMin > 0) localMin-- else localMin = 59 },
+                                        onIncrement = { if (localMin < 59) localMin++ else localMin = 0 },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                     }
                 )
@@ -880,6 +959,66 @@ fun SelfCalibrationOverlay(onDismiss: () -> Unit) {
             ) {
                 Text("ABORT CALIBRATION", color = Color.White, fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+@Composable
+private fun TouchStepper(
+    label: String,
+    value: String,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 9.sp,
+            color = Color.White.copy(alpha = 0.5f),
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0x0FFFFFFF), RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                text = "-",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onDecrement() },
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = value,
+                color = Gold,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1.5f),
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "+",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onIncrement() },
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

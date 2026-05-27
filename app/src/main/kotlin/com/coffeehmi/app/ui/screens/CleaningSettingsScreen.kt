@@ -35,8 +35,15 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun CleaningSettingsScreen(
@@ -63,6 +70,7 @@ fun CleaningSettingsScreen(
     var brewerAuto by remember(initBrewerAuto) { mutableStateOf(initBrewerAuto) }
 
     var saveToastShow by remember { mutableStateOf(false) }
+    var isCleaningActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(saveToastShow) {
         if (saveToastShow) {
@@ -84,7 +92,6 @@ fun CleaningSettingsScreen(
 
         val outerPad = (w.value * 0.02f).coerceIn(8f, 20f).dp
         val colGap = (w.value * 0.02f).coerceIn(8f, 16f).dp
-        val cardW = (w - outerPad * 2 - colGap) / 2
 
         val titleSize = (topBarH.value * 0.35f).coerceIn(16f, 24f).sp
         val labelSize = (h.value * 0.04f).coerceIn(10f, 16f).sp
@@ -183,7 +190,8 @@ fun CleaningSettingsScreen(
                             onValueChange = { milkOn = it },
                             range = 0.5f..5.0f,
                             unit = "s",
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         CleaningSliderRow(
@@ -192,7 +200,8 @@ fun CleaningSettingsScreen(
                             onValueChange = { milkOff = it },
                             range = 0.5f..5.0f,
                             unit = "s",
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         CleaningIntRow(
@@ -200,7 +209,8 @@ fun CleaningSettingsScreen(
                             value = milkCycles,
                             onValueChange = { milkCycles = it },
                             range = 1..10,
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         CleaningIntRow(
@@ -210,7 +220,8 @@ fun CleaningSettingsScreen(
                             range = 10..120,
                             unit = "s",
                             step = 5,
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
                     }
                 }
@@ -246,7 +257,8 @@ fun CleaningSettingsScreen(
                             onValueChange = { brewerOn = it },
                             range = 1.0f..15.0f,
                             unit = "s",
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         CleaningIntRow(
@@ -254,7 +266,8 @@ fun CleaningSettingsScreen(
                             value = brewerCycles,
                             onValueChange = { brewerCycles = it },
                             range = 1..10,
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         CleaningIntRow(
@@ -264,7 +277,8 @@ fun CleaningSettingsScreen(
                             range = 10..120,
                             unit = "s",
                             step = 5,
-                            labelSize = labelSize
+                            labelSize = labelSize,
+                            enabled = !isCleaningActive
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
@@ -278,7 +292,7 @@ fun CleaningSettingsScreen(
                 }
             }
 
-            // Bottom Actions: BACK, RUN CLEANING, & SAVE
+            // Bottom Actions: BACK, RUN CLEANING, & SAVE (Hidden during cleaning)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -289,52 +303,59 @@ fun CleaningSettingsScreen(
                 // BACK button
                 Button(
                     onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x1EFFFFFF)),
+                    enabled = !isCleaningActive,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isCleaningActive) Color(0x0DFFFFFF) else Color(0x1EFFFFFF)
+                    ),
                     shape = RoundedCornerShape(4.dp),
                     border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    Text("BACK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = labelSize * 0.9f)
+                    Text("BACK", color = if (isCleaningActive) Color.White.copy(alpha = 0.3f) else Color.White, fontWeight = FontWeight.Bold, fontSize = labelSize * 0.9f)
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // RUN CLEANING button
-                    var isCleaningActive by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = { isCleaningActive = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepEspresso),
-                        shape = RoundedCornerShape(4.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
-                    ) {
-                        Text("RUN CLEANING", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
+                if (!isCleaningActive) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // RUN CLEANING button
+                        Button(
+                            onClick = { isCleaningActive = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepEspresso),
+                            shape = RoundedCornerShape(4.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+                        ) {
+                            Text("RUN CLEANING", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
 
-                    // SAVE button
-                    Button(
-                        onClick = {
-                            InventoryManager.saveCleaningSettings(
-                                milkOn, milkOff, milkCycles, milkAuto,
-                                brewerOn, brewerCycles, brewerAuto
-                            )
-                            saveToastShow = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                        shape = RoundedCornerShape(4.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
-                    ) {
-                        Text("SAVE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        // SAVE button
+                        Button(
+                            onClick = {
+                                InventoryManager.saveCleaningSettings(
+                                    milkOn, milkOff, milkCycles, milkAuto,
+                                    brewerOn, brewerCycles, brewerAuto
+                                )
+                                saveToastShow = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                            shape = RoundedCornerShape(4.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+                        ) {
+                            Text("SAVE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
                     }
-
-                    if (isCleaningActive) {
-                        SelfCleaningOverlay(
-                            onDismiss = {
-                                isCleaningActive = false
-                                InventoryManager.addLog("Self-cleaning process finished.")
-                            }
-                        )
-                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
                 }
             }
+        }
+
+        // Self Cleaning Overlay: rendered at the root Box level to completely cover the screen when active.
+        if (isCleaningActive) {
+            SelfCleaningOverlay(
+                onDismiss = {
+                    isCleaningActive = false
+                    InventoryManager.addLog("Self-cleaning process finished.")
+                }
+            )
         }
 
         // Overlay Notification for saved settings
@@ -361,17 +382,29 @@ fun CleaningSettingsScreen(
 fun SelfCleaningOverlay(onDismiss: () -> Unit) {
     var progress by remember { mutableStateOf(0f) }
     var phaseText by remember { mutableStateOf("Initializing...") }
+    var flowRate by remember { mutableStateOf(0f) }
+    var pressureVal by remember { mutableStateOf(0f) }
+    var tempVal by remember { mutableStateOf(25f) }
 
-    // Increment progress and loop through phases
+    // Increment progress and update diagnostic telemetry dynamically
     LaunchedEffect(Unit) {
         phaseText = "Flushing Milk System Circuits..."
-        delay(1500); progress = 0.25f
+        flowRate = 8.5f; pressureVal = 2.4f; tempVal = 65f
+        delay(2000); progress = 0.25f
+        
         phaseText = "Injecting High-Temp Descaling Agent..."
-        delay(2000); progress = 0.50f
+        flowRate = 3.2f; pressureVal = 15.0f; tempVal = 95f
+        delay(2500); progress = 0.50f
+        
         phaseText = "Steam Wand Purging & Pressure Flush..."
-        delay(2000); progress = 0.75f
+        flowRate = 12.0f; pressureVal = 8.2f; tempVal = 105f
+        delay(2500); progress = 0.75f
+        
         phaseText = "Finalizing Water Chamber Rinsing..."
-        delay(1500); progress = 1.0f
+        flowRate = 10.1f; pressureVal = 4.0f; tempVal = 88f
+        delay(2000); progress = 1.0f
+        
+        flowRate = 0f; pressureVal = 0f; tempVal = 45f
         delay(1000)
         onDismiss()
     }
@@ -382,7 +415,7 @@ fun SelfCleaningOverlay(onDismiss: () -> Unit) {
         label = "cleaning_progress"
     )
 
-    // Running particle/flow offsets
+    // Infinitely running rotation/flow offsets
     val infiniteTransition = rememberInfiniteTransition(label = "flow_pulses")
     val flowOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -393,24 +426,35 @@ fun SelfCleaningOverlay(onDismiss: () -> Unit) {
         ),
         label = "flow"
     )
+    val rotateAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
-            .clickable(enabled = false) {}, // absorb clicks
+            .background(Color.Black.copy(alpha = 0.96f))
+            .clickable(enabled = false) {}, // absorb clicks to prevent underlying actions
         contentAlignment = Alignment.Center
     ) {
         val overlayW = maxWidth
         val overlayH = maxHeight
-        val canvasW = (overlayW.value * 0.72f).coerceIn(260f, 520f).dp
-        val canvasH = (overlayH.value * 0.32f).coerceIn(140f, 260f).dp
+        val panelW = (overlayW.value * 0.90f).dp
+        val canvasW = (overlayW.value * 0.55f).dp
+        val telemetryW = (overlayW.value * 0.30f).dp
+        val canvasH = (overlayH.value * 0.48f).dp
         val titleSp = (overlayH.value * 0.045f).coerceIn(14f, 22f).sp
-        val bodyPad = (overlayW.value * 0.04f).coerceIn(12f, 36f).dp
+        val bodyPad = (overlayW.value * 0.03f).coerceIn(8f, 24f).dp
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly,
+            verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = bodyPad, vertical = (overlayH.value * 0.03f).coerceIn(8f, 24f).dp)
@@ -423,88 +467,137 @@ fun SelfCleaningOverlay(onDismiss: () -> Unit) {
                 letterSpacing = 2.sp
             )
 
-            // Canvas Animation Area (Fluid path schematic) – fully responsive
-            Box(
+            // Dynamic Main Pane: Schematic + Telemetry HUD Side-by-Side
+            Row(
                 modifier = Modifier
-                    .size(canvasW, canvasH)
-                    .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
-                    .background(Color(0x05FFFFFF)),
-                contentAlignment = Alignment.Center
+                    .width(panelW)
+                    .height(canvasH),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val w = size.width
-                    val h = size.height
+                // Left Part: High-tech Schematic Canvas
+                Box(
+                    modifier = Modifier
+                        .weight(1.8f)
+                        .fillMaxHeight()
+                        .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(16.dp))
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0x0F8D6E63), Color(0x05000000))
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
 
-                    // Draw static schematic nodes (Reservoir, Boiler, Valve, Outlet)
-                    val resCenter = Offset(w * 0.15f, h * 0.35f)
-                    val pumpCenter = Offset(w * 0.40f, h * 0.35f)
-                    val boilerCenter = Offset(w * 0.65f, h * 0.35f)
-                    val outletCenter = Offset(w * 0.85f, h * 0.70f)
+                        // Coordinates for Nodes
+                        val resCenter = Offset(w * 0.16f, h * 0.40f)
+                        val pumpCenter = Offset(w * 0.42f, h * 0.40f)
+                        val boilerCenter = Offset(w * 0.68f, h * 0.40f)
+                        val outletCenter = Offset(w * 0.86f, h * 0.70f)
 
-                    // Draw lines connecting nodes
-                    drawLine(Color(0x33FFFFFF), resCenter, pumpCenter, strokeWidth = 8.dp.toPx())
-                    drawLine(Color(0x33FFFFFF), pumpCenter, boilerCenter, strokeWidth = 8.dp.toPx())
-                    drawLine(Color(0x33FFFFFF), boilerCenter, outletCenter, strokeWidth = 8.dp.toPx())
+                        // 1. Draw connecting glass tube lines (translucent background tubes)
+                        drawTube(resCenter, pumpCenter)
+                        drawTube(pumpCenter, boilerCenter)
+                        drawTube(boilerCenter, outletCenter)
 
-                    // Draw flow pulses along lines
-                    val dotColor = when {
-                        animatedProgress < 0.3f -> Color.White // milk cleaning
-                        animatedProgress < 0.7f -> Color(0xFFFFB74D) // chemical agent
-                        else -> Color(0xFF2196F3) // water rinsing
-                    }
+                        // 2. Determine fluid color by phase
+                        val fluidColor = when {
+                            animatedProgress < 0.25f -> Color(0xFFF5F5DC) // Milky White (milk system flush)
+                            animatedProgress < 0.50f -> Color(0xFFFFB74D) // Amber / Chemical Descaler
+                            animatedProgress < 0.75f -> Color(0xFFE0F7FA).copy(alpha = 0.5f) // Steam mist
+                            else -> Color(0xFF4FC3F7) // Pure water blue
+                        }
 
-                    // Animate flow dots moving along paths
-                    val step1Dist = (pumpCenter.x - resCenter.x)
-                    val dot1X = resCenter.x + ((flowOffset / 100f) * step1Dist)
-                    drawCircle(dotColor, radius = 6.dp.toPx(), center = Offset(dot1X, resCenter.y))
+                        // 3. Draw active flowing fluid pulses inside the tubes
+                        drawFluidFlow(resCenter, pumpCenter, flowOffset, fluidColor)
+                        drawFluidFlow(pumpCenter, boilerCenter, (flowOffset + 33f) % 100f, fluidColor)
+                        drawFluidFlow(boilerCenter, outletCenter, (flowOffset + 66f) % 100f, fluidColor)
 
-                    val step2Dist = (boilerCenter.x - pumpCenter.x)
-                    val dot2X = pumpCenter.x + (((flowOffset + 50f) % 100f) / 100f * step2Dist)
-                    drawCircle(dotColor, radius = 6.dp.toPx(), center = Offset(dot2X, pumpCenter.y))
+                        // 4. Reservoir Node (shows water level lowering)
+                        drawReservoir(resCenter, animatedProgress)
 
-                    val dx = (outletCenter.x - boilerCenter.x)
-                    val dy = (outletCenter.y - boilerCenter.y)
-                    val pct3 = (flowOffset / 100f)
-                    drawCircle(dotColor, radius = 6.dp.toPx(), center = Offset(boilerCenter.x + dx * pct3, boilerCenter.y + dy * pct3))
+                        // 5. Pump Node (with rotating impeller blades)
+                        drawPump(pumpCenter, rotateAngle)
 
-                    // Draw Nodes
-                    drawCircle(Color(0xFF2196F3), radius = 18.dp.toPx(), center = resCenter) // Water Reservoir
-                    drawCircle(Color.Gray, radius = 14.dp.toPx(), center = pumpCenter) // Pump
-                    drawCircle(Color(0xFFE57373), radius = 22.dp.toPx(), center = boilerCenter) // Heater
+                        // 6. Boiler Heater Node (pulses red/orange)
+                        drawBoiler(boilerCenter, flowOffset)
 
-                    // Spray Animation at outlets
-                    if (animatedProgress > 0f && animatedProgress < 1.0f) {
-                        for (i in 0..4) {
-                            val sprayY = outletCenter.y + 12.dp.toPx() + ((flowOffset + i * 20f) % 100f) / 100f * 40.dp.toPx()
-                            val sprayX = outletCenter.x + (i - 2) * 5.dp.toPx()
-                            drawCircle(dotColor.copy(alpha = 0.6f), radius = 3.dp.toPx(), center = Offset(sprayX, sprayY))
+                        // 7. Spray/Steam droplet particles at outlet nozzle
+                        if (animatedProgress > 0f && animatedProgress < 1.0f) {
+                            drawOutletSpray(outletCenter, flowOffset, fluidColor)
                         }
                     }
 
-                    // Labels
-                    // We can't draw text directly easily in Compose Canvas without native canvas, so we keep visual representations
+                    // Floating text labels overlaying the Canvas
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text("RESERVOIR", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).padding(start = 22.dp, top = 22.dp))
+                        Text("FLOW PUMP", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopCenter).padding(end = 40.dp, top = 22.dp))
+                        Text("THERMO BLOCK", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(end = 65.dp, top = 22.dp))
+                        Text("NOZZLE", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 40.dp, bottom = 44.dp))
+                    }
                 }
 
-                // Node labels as Compose overlay
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text("RESERVOIR", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).padding(start = 28.dp, top = 30.dp))
-                    Text("PUMP", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopCenter).padding(end = 65.dp, top = 30.dp))
-                    Text("BOILER", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(end = 100.dp, top = 20.dp))
-                    Text("OUTLET", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 36.dp, bottom = 48.dp))
+                // Right Part: High-Tech Telemetry HUD Panel
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(16.dp)),
+                    color = Color(0x08FFFFFF),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.SpaceEvenly,
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            "DIAGNOSTICS HUD",
+                            color = Gold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        
+                        Divider(color = Color.White.copy(alpha = 0.1f))
+
+                        TelemetryItem(
+                            label = "SYSTEM TEMP",
+                            value = String.format(java.util.Locale.US, "%.1f °C", tempVal),
+                            subText = if (tempVal > 90) "HEATING ACTIVE" else "STABLE"
+                        )
+                        TelemetryItem(
+                            label = "HYDRAULIC PRESSURE",
+                            value = String.format(java.util.Locale.US, "%.1f Bar", pressureVal),
+                            subText = if (pressureVal > 12) "HIGH PRESSURE" else "NOMINAL"
+                        )
+                        TelemetryItem(
+                            label = "FLOW RATE",
+                            value = String.format(java.util.Locale.US, "%.1f ml/s", flowRate),
+                            subText = if (flowRate > 0) "CIRCULATION OK" else "IDLE"
+                        )
+                    }
                 }
             }
 
             Text(
                 text = phaseText,
                 color = Color.White,
-                fontSize = (overlayH.value * 0.030f).coerceIn(10f, 15f).sp,
-                fontWeight = FontWeight.Medium
+                fontSize = (overlayH.value * 0.035f).coerceIn(12f, 17f).sp,
+                fontWeight = FontWeight.SemiBold
             )
 
+            // Progress bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(0.72f)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth(0.75f)
             ) {
                 LinearProgressIndicator(
                     progress = animatedProgress,
@@ -519,22 +612,219 @@ fun SelfCleaningOverlay(onDismiss: () -> Unit) {
                     text = "${(animatedProgress * 100).toInt()}%",
                     color = Gold,
                     fontWeight = FontWeight.Bold,
-                    fontSize = (overlayH.value * 0.030f).coerceIn(10f, 15f).sp
+                    fontSize = (overlayH.value * 0.035f).coerceIn(12f, 17f).sp
                 )
             }
 
+            // Halt button
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = ErrorRose),
                 shape = RoundedCornerShape(4.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 10.dp)
             ) {
-                Text("HALT CYCLE", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("HALT CYCLE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
 }
 
+// ── Draw Helper Methods for schematic ────────────────────────────────────────
+
+private fun DrawScope.drawTube(start: Offset, end: Offset) {
+    drawLine(
+        color = Color(0x1AFFFFFF),
+        start = start,
+        end = end,
+        strokeWidth = 10.dp.toPx(),
+        cap = StrokeCap.Round
+    )
+    drawLine(
+        color = Color(0x33000000),
+        start = start,
+        end = end,
+        strokeWidth = 8.dp.toPx(),
+        cap = StrokeCap.Round
+    )
+}
+
+private fun DrawScope.drawFluidFlow(
+    start: Offset,
+    end: Offset,
+    flowOffset: Float,
+    fluidColor: Color
+) {
+    val totalDx = end.x - start.x
+    val totalDy = end.y - start.y
+    val sizePx = 6.dp.toPx()
+
+    // Render 3 flowing beads along the path
+    for (i in 0..2) {
+        val fraction = ((flowOffset + i * 33.3f) % 100f) / 100f
+        val x = start.x + totalDx * fraction
+        val y = start.y + totalDy * fraction
+        drawCircle(
+            color = fluidColor,
+            radius = sizePx,
+            center = Offset(x, y)
+        )
+    }
+}
+
+private fun DrawScope.drawReservoir(center: Offset, progress: Float) {
+    val r = 24.dp.toPx()
+    // Outer glass housing
+    drawCircle(
+        color = Color.White.copy(alpha = 0.2f),
+        radius = r,
+        center = center,
+        style = Stroke(width = 2.dp.toPx())
+    )
+    drawCircle(
+        color = Color(0x0FFFFFFF),
+        radius = r - 1.dp.toPx(),
+        center = center
+    )
+    
+    // Liquid level inside reservoir (decreases as progress increases)
+    val liquidPct = (1f - progress * 0.7f).coerceIn(0.2f, 1f)
+    val clipPath = Path().apply {
+        val startY = center.y + r - (r * 2 * liquidPct)
+        moveTo(center.x - r, startY)
+        lineTo(center.x + r, startY)
+        arcTo(
+            rect = Rect(center.x - r, center.y - r, center.x + r, center.y + r),
+            startAngleDegrees = 0f,
+            sweepAngleDegrees = 180f,
+            forceMoveTo = false
+        )
+        close()
+    }
+    drawPath(
+        path = clipPath,
+        brush = Brush.verticalGradient(listOf(Color(0xFF29B6F6), Color(0xFF0288D1)))
+    )
+}
+
+private fun DrawScope.drawPump(center: Offset, rotateAngle: Float) {
+    val r = 18.dp.toPx()
+    // Pump Housing
+    drawCircle(
+        color = Color.White.copy(alpha = 0.3f),
+        radius = r,
+        center = center,
+        style = Stroke(width = 2.dp.toPx())
+    )
+    drawCircle(
+        color = Color(0x26FFFFFF),
+        radius = r - 1.dp.toPx(),
+        center = center
+    )
+
+    // Spinning pump impeller blades
+    val angleRad = Math.toRadians(rotateAngle.toDouble())
+    for (i in 0..2) {
+        val bladeAngle = angleRad + i * (2 * Math.PI / 3)
+        val endPoint = Offset(
+            (center.x + (r - 4.dp.toPx()) * cos(bladeAngle)).toFloat(),
+            (center.y + (r - 4.dp.toPx()) * sin(bladeAngle)).toFloat()
+        )
+        drawLine(
+            color = Gold,
+            start = center,
+            end = endPoint,
+            strokeWidth = 3.dp.toPx(),
+            cap = StrokeCap.Round
+        )
+    }
+    drawCircle(
+        color = Gold,
+        radius = 4.dp.toPx(),
+        center = center
+    )
+}
+
+private fun DrawScope.drawBoiler(center: Offset, flowOffset: Float) {
+    val r = 26.dp.toPx()
+    // Pulsing heating core glow (sine wave based on flowOffset)
+    val pulse = 0.3f + 0.5f * sin(flowOffset * Math.PI.toFloat() / 50f)
+    drawCircle(
+        color = Color(0xFFFF5252).copy(alpha = (pulse * 0.25f).coerceIn(0f, 1f)),
+        radius = r + 8.dp.toPx(),
+        center = center
+    )
+    
+    // Core housing
+    drawCircle(
+        color = Color.White.copy(alpha = 0.2f),
+        radius = r,
+        center = center,
+        style = Stroke(width = 2.dp.toPx())
+    )
+    
+    // Heating element coil representation
+    drawCircle(
+        color = Color(0xFFFF5252),
+        radius = r - 6.dp.toPx(),
+        center = center,
+        style = Stroke(width = 3.dp.toPx())
+    )
+    drawCircle(
+        color = Color(0xFFFFB74D),
+        radius = r - 14.dp.toPx(),
+        center = center,
+        style = Stroke(width = 2.dp.toPx())
+    )
+}
+
+private fun DrawScope.drawOutletSpray(
+    center: Offset,
+    flowOffset: Float,
+    fluidColor: Color
+) {
+    // Render nozzle tip
+    drawRect(
+        color = Color.White.copy(alpha = 0.5f),
+        topLeft = Offset(center.x - 6.dp.toPx(), center.y - 12.dp.toPx()),
+        size = Size(12.dp.toPx(), 12.dp.toPx())
+    )
+
+    // Render animated droplets shooting downwards
+    for (i in 0..5) {
+        val fraction = ((flowOffset + i * 20f) % 100f) / 100f
+        val distance = 60.dp.toPx()
+        val dy = fraction * distance
+        val dx = (i - 2.5f) * 6.dp.toPx() * fraction
+        drawCircle(
+            color = fluidColor.copy(alpha = ((1f - fraction) * 0.8f).coerceIn(0f, 1f)),
+            radius = (3.dp.toPx() * (1f - fraction * 0.5f)),
+            center = Offset(center.x + dx, center.y + dy)
+        )
+    }
+
+    // Render rising steam clouds
+    for (i in 0..2) {
+        val fraction = ((flowOffset + i * 35f) % 100f) / 100f
+        val sy = -fraction * 35.dp.toPx()
+        val sx = sin((flowOffset + i * 40f) * Math.PI.toFloat() / 50f) * 8.dp.toPx()
+        drawCircle(
+            color = Color.White.copy(alpha = ((1f - fraction) * 0.15f).coerceIn(0f, 1f)),
+            radius = 12.dp.toPx() + fraction * 10.dp.toPx(),
+            center = Offset(center.x + sx, center.y + sy)
+        )
+    }
+}
+
+@Composable
+private fun TelemetryItem(label: String, value: String, subText: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(subText, color = Gold.copy(alpha = 0.6f), fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
 
 @Composable
 private fun CleaningSliderRow(
@@ -543,7 +833,8 @@ private fun CleaningSliderRow(
     onValueChange: (Float) -> Unit,
     range: ClosedFloatingPointRange<Float>,
     unit: String = "",
-    labelSize: androidx.compose.ui.unit.TextUnit
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    enabled: Boolean
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -553,13 +844,13 @@ private fun CleaningSliderRow(
         ) {
             Text(
                 text = label,
-                color = Color.White.copy(alpha = 0.9f),
+                color = if (enabled) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.3f),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = labelSize * 0.9f
             )
             Text(
                 text = String.format("%.1f%s", value, unit),
-                color = Gold,
+                color = if (enabled) Gold else Color.White.copy(alpha = 0.3f),
                 fontWeight = FontWeight.Bold,
                 fontSize = labelSize
             )
@@ -568,11 +859,11 @@ private fun CleaningSliderRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "-",
-                color = Color.White.copy(alpha = 0.5f),
+                color = if (enabled) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.2f),
                 fontSize = 20.sp,
                 modifier = Modifier
                     .width(24.dp)
-                    .clickable {
+                    .clickable(enabled = enabled) {
                         onValueChange((value - 0.1f).coerceIn(range.start, range.endInclusive))
                     },
                 textAlign = TextAlign.Center
@@ -581,20 +872,24 @@ private fun CleaningSliderRow(
                 value = value,
                 onValueChange = onValueChange,
                 valueRange = range,
+                enabled = enabled,
                 colors = SliderDefaults.colors(
                     thumbColor = Gold,
                     activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                    inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                    disabledThumbColor = Color.White.copy(alpha = 0.3f),
+                    disabledActiveTrackColor = Color.White.copy(alpha = 0.1f),
+                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.1f)
                 ),
                 modifier = Modifier.weight(1f)
             )
             Text(
                 text = "+",
-                color = Color.White.copy(alpha = 0.5f),
+                color = if (enabled) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.2f),
                 fontSize = 20.sp,
                 modifier = Modifier
                     .width(24.dp)
-                    .clickable {
+                    .clickable(enabled = enabled) {
                         onValueChange((value + 0.1f).coerceIn(range.start, range.endInclusive))
                     },
                 textAlign = TextAlign.Center
@@ -611,7 +906,8 @@ private fun CleaningIntRow(
     range: IntRange,
     unit: String = "",
     step: Int = 1,
-    labelSize: androidx.compose.ui.unit.TextUnit
+    labelSize: androidx.compose.ui.unit.TextUnit,
+    enabled: Boolean
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -621,13 +917,13 @@ private fun CleaningIntRow(
         ) {
             Text(
                 text = label,
-                color = Color.White.copy(alpha = 0.9f),
+                color = if (enabled) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.3f),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = labelSize * 0.9f
             )
             Text(
                 text = "$value$unit",
-                color = Gold,
+                color = if (enabled) Gold else Color.White.copy(alpha = 0.3f),
                 fontWeight = FontWeight.Bold,
                 fontSize = labelSize
             )
@@ -636,11 +932,11 @@ private fun CleaningIntRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "-",
-                color = Color.White.copy(alpha = 0.5f),
+                color = if (enabled) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.2f),
                 fontSize = 20.sp,
                 modifier = Modifier
                     .width(24.dp)
-                    .clickable {
+                    .clickable(enabled = enabled) {
                         onValueChange((value - step).coerceIn(range.first, range.last))
                     },
                 textAlign = TextAlign.Center
@@ -650,20 +946,24 @@ private fun CleaningIntRow(
                 onValueChange = { onValueChange(it.toInt()) },
                 valueRange = range.first.toFloat()..range.last.toFloat(),
                 steps = if (step == 1) (range.last - range.first - 1) else ((range.last - range.first) / step - 1),
+                enabled = enabled,
                 colors = SliderDefaults.colors(
                     thumbColor = Gold,
                     activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                    inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                    disabledThumbColor = Color.White.copy(alpha = 0.3f),
+                    disabledActiveTrackColor = Color.White.copy(alpha = 0.1f),
+                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.1f)
                 ),
                 modifier = Modifier.weight(1f)
             )
             Text(
                 text = "+",
-                color = Color.White.copy(alpha = 0.5f),
+                color = if (enabled) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.2f),
                 fontSize = 20.sp,
                 modifier = Modifier
                     .width(24.dp)
-                    .clickable {
+                    .clickable(enabled = enabled) {
                         onValueChange((value + step).coerceIn(range.first, range.last))
                     },
                 textAlign = TextAlign.Center

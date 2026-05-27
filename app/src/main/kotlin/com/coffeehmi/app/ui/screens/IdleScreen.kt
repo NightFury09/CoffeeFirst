@@ -18,16 +18,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coffeehmi.app.R
 import kotlinx.coroutines.delay
-import java.time.LocalTime
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.coffeehmi.app.model.InventoryManager
 
 @Composable
 fun IdleScreen(onStart: () -> Unit) {
-    var currentTime by remember { mutableStateOf(LocalTime.now()) }
+    var currentTime by remember { mutableStateOf(InventoryManager.getSystemDateTime()) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = LocalTime.now()
+            currentTime = InventoryManager.getSystemDateTime()
             delay(1000)
         }
     }
@@ -98,6 +99,14 @@ fun IdleScreen(onStart: () -> Unit) {
                 color      = Color.White,
                 fontWeight = FontWeight.ExtraLight,
                 fontSize   = clockFontSize
+            )
+
+            Text(
+                text       = currentTime.format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")),
+                color      = Color.White.copy(alpha = 0.7f),
+                fontWeight = FontWeight.Normal,
+                fontSize   = hintFontSize,
+                modifier   = Modifier.padding(vertical = 4.dp)
             )
 
             Text(

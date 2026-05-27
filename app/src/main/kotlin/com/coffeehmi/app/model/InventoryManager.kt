@@ -4,10 +4,25 @@ import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 object InventoryManager {
+    // Custom Date/Time Offset in seconds
+    private val _timeOffsetSeconds = MutableStateFlow(0L)
+    val timeOffsetSeconds: StateFlow<Long> = _timeOffsetSeconds.asStateFlow()
+
+    fun getSystemDateTime(): LocalDateTime {
+        return LocalDateTime.now().plusSeconds(_timeOffsetSeconds.value)
+    }
+
+    fun setSystemDateTime(newDateTime: LocalDateTime) {
+        val current = LocalDateTime.now()
+        val offset = java.time.Duration.between(current, newDateTime).seconds
+        _timeOffsetSeconds.value = offset
+        addLog("System date/time synchronized to: ${newDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))}")
+    }
     // Ingredients
     private val _coffeeBeansGrams = MutableStateFlow(1000f) // Max 1000g
     val coffeeBeansGrams: StateFlow<Float> = _coffeeBeansGrams.asStateFlow()
@@ -41,7 +56,7 @@ object InventoryManager {
     }
 
     fun addLog(msg: String) {
-        val time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+        val time = getSystemDateTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
         _systemLogs.add(0, "[$time] $msg")
         if (_systemLogs.size > 50) {
             _systemLogs.removeLast()

@@ -21,13 +21,20 @@ android {
         }
     }
 
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
-            // Output APK named Coffee_first-debug.apk
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -75,3 +82,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+tasks.matching { it.name.startsWith("assemble") }.all {
+    doLast {
+        val buildTypeName = name.removePrefix("assemble").replaceFirstChar { it.lowercase() }
+        val finalApk = file("build/outputs/apk/$buildTypeName/Coffee_first-$buildTypeName.apk")
+        val intermediateApk = file("build/intermediates/apk/$buildTypeName/Coffee_first-$buildTypeName.apk")
+        if (finalApk.exists()) {
+            intermediateApk.parentFile.mkdirs()
+            finalApk.copyTo(intermediateApk, overwrite = true)
+            logger.lifecycle("Copied signed APK to intermediates: $intermediateApk")
+        }
+    }
+}
+
